@@ -143,8 +143,8 @@ k8s-new/
 
 - **[01-installation-cluster.md](docs/01-installation-cluster.md)** : Installation complète d'un cluster Kubernetes (kubeadm, containerd, Calico)
 - **[02-deploiement-initial.md](docs/02-deploiement-initial.md)** : Déploiement de l'infrastructure (manuel et automatisé)
-- **[08-troubleshooting.md](docs/03-troubleshooting)** : Résolution des problèmes courants (pods, réseau, stockage, ingress)
-- **[09-best-practices.md](docs/04-best-practices)** : Best practices Kubernetes (sécurité, ressources, monitoring)
+- **[03-troubleshooting.md](docs/03-troubleshooting)** : Résolution des problèmes courants (pods, réseau, stockage, ingress)
+- **[04-best-practices.md](docs/04-best-practices)** : Best practices Kubernetes (sécurité, ressources, monitoring)
 
 ### Documentation par composant
 
@@ -198,7 +198,7 @@ kubectl apply -f infrastructure/nexus/
 kubectl apply -f infrastructure/sonarqube/
 
 # Option 2: Script automatisé
-./scripts/deploy-infrastructure.sh
+./scripts/deploy-all.sh
 ```
 
 ## 📚 Documentation détaillée
@@ -276,7 +276,7 @@ kubectl get ingress -n devops
 
 ### Problèmes courants
 
-Consultez [docs/04-troubleshooting.md](docs/03-troubleshooting) pour les solutions détaillées.
+Consultez [docs/03-troubleshooting.md](docs/03-troubleshooting) pour les solutions détaillées.
 
 ## 📞 Support
 

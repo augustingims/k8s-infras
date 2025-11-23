@@ -150,3 +150,9 @@ Desktop.ini
 ######################
 /coverage/
 /.nyc_output/
+
+######################
+# Vagrant
+######################
+.vagrant/
+join.sh

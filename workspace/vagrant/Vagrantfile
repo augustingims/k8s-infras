@@ -1,0 +1,44 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Configuration commune pour toutes les VMs
+  config.vm.box = "ubuntu/jammy64"  # Ubuntu 22.04 LTS
+
+  # Configuration des ressources et provisionnement pour chaque nœud
+  config.vm.define "k8s-master" do |master|
+    master.vm.hostname = "k8s-master"
+    master.vm.network "private_network", ip: "192.168.56.101"
+    master.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
+      vb.cpus = 2
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    end
+    master.vm.provision "shell", path: "provision-common.sh"
+    master.vm.provision "shell", path: "provision-master.sh"
+  end
+
+  config.vm.define "k8s-worker1" do |worker1|
+    worker1.vm.hostname = "worker1"
+    worker1.vm.network "private_network", ip: "192.168.56.102"
+    worker1.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    end
+    worker1.vm.provision "shell", path: "provision-common.sh"
+    worker1.vm.provision "shell", path: "provision-worker.sh"
+  end
+
+  config.vm.define "k8s-worker2" do |worker2|
+    worker2.vm.hostname = "worker2"
+    worker2.vm.network "private_network", ip: "192.168.56.103"
+    worker2.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    end
+    worker2.vm.provision "shell", path: "provision-common.sh"
+    worker2.vm.provision "shell", path: "provision-worker.sh"
+  end
+end

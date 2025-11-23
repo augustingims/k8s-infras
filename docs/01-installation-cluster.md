@@ -65,7 +65,8 @@ containerd config default | sudo tee /etc/containerd/config.toml
 
 # Activer SystemdCgroup
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-
+echo "=== Fix du sandbox image (pause:3.10.1) ==="
+sudo sed -i 's#sandbox_image = "registry.k8s.io/pause:.*"#sandbox_image = "registry.k8s.io/pause:3.10.1"#' /etc/containerd/config.toml
 # Redémarrer containerd
 sudo systemctl restart containerd
 sudo systemctl enable containerd
@@ -75,11 +76,12 @@ sudo systemctl enable containerd
 
 ```bash
 # Ajouter la clé GPG de Kubernetes
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 # Ajouter le repository Kubernetes
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list
 
 # Installer kubeadm, kubelet et kubectl
 sudo apt-get update
@@ -112,16 +114,12 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubectl get nodes
 ```
 
-### 5. Installation du CNI (Calico)
+### 5. Installation du CNI (Flannel)
 
 ```bash
 # Sur le master node
-# Installer Calico
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
-
-# Attendre que Calico soit prêt
-watch kubectl get pods -n calico-system
+# Installer Flannel
+sudo kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 ```
 
 ### 6. Joindre les Worker Nodes

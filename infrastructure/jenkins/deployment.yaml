@@ -1,0 +1,170 @@
+---
+# PersistentVolumeClaim pour Jenkins
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+  namespace: devops
+  labels:
+    app: jenkins
+    component: ci-cd
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Deployment pour Jenkins
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: devops
+  labels:
+    app: jenkins
+    component: ci-cd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  strategy:
+    type: Recreate  # Important pour éviter les conflits de volumes
+  template:
+    metadata:
+      labels:
+        app: jenkins
+        component: ci-cd
+    spec:
+      serviceAccountName: jenkins
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:2.464-jdk17
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 50000
+          name: agent
+          protocol: TCP
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms1G -Xmx2G -XX:+UseG1GC -Djenkins.install.runSetupWizard=false"
+        - name: JENKINS_OPTS
+          value: "--prefix=/jenkins"
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /jenkins/login
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /jenkins/login
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+---
+# Service pour Jenkins
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: devops
+  labels:
+    app: jenkins
+    component: ci-cd
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 50000
+    targetPort: 50000
+    protocol: TCP
+    name: agent
+  selector:
+    app: jenkins
+---
+# ServiceAccount pour Jenkins
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: devops
+  labels:
+    app: jenkins
+---
+# Role pour Jenkins
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins
+  namespace: devops
+  labels:
+    app: jenkins
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+---
+# RoleBinding pour Jenkins
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins
+  namespace: devops
+  labels:
+    app: jenkins
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins
+subjects:
+- kind: ServiceAccount
+  name: jenkins
+  namespace: devops
+

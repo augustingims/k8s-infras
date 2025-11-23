@@ -1,0 +1,115 @@
+---
+# PersistentVolumeClaim pour Nexus
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nexus-pvc
+  namespace: devops
+  labels:
+    app: nexus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Deployment pour Nexus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus
+  namespace: devops
+  labels:
+    app: nexus
+    component: artifact-repository
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nexus
+        component: artifact-repository
+    spec:
+      securityContext:
+        fsGroup: 200
+        runAsUser: 200
+      containers:
+      - name: nexus
+        image: sonatype/nexus3:3.69.0
+        ports:
+        - containerPort: 8081
+          name: http
+          protocol: TCP
+        - containerPort: 8082
+          name: docker-hosted
+          protocol: TCP
+        - containerPort: 8083
+          name: docker-proxy
+          protocol: TCP
+        env:
+        - name: INSTALL4J_ADD_VM_PARAMS
+          value: "-Xms2G -Xmx2G -XX:MaxDirectMemorySize=2G"
+        volumeMounts:
+        - name: nexus-data
+          mountPath: /nexus-data
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 180
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: nexus-data
+        persistentVolumeClaim:
+          claimName: nexus-pvc
+---
+# Service pour Nexus
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus
+  namespace: devops
+  labels:
+    app: nexus
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  - port: 8082
+    targetPort: 8082
+    protocol: TCP
+    name: docker-hosted
+  - port: 8083
+    targetPort: 8083
+    protocol: TCP
+    name: docker-proxy
+  selector:
+    app: nexus
+

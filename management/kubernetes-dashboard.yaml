@@ -1,0 +1,111 @@
+# Kubernetes Dashboard
+# Installation via Helm recommandée, ce fichier contient les instructions
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubernetes-dashboard
+
+---
+# Instructions d'installation
+# Le Kubernetes Dashboard est mieux installé via Helm pour faciliter les mises à jour
+
+# 1. Ajouter le repository Helm
+# helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+# helm repo update
+
+# 2. Installer le Dashboard
+# helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
+#   --namespace kubernetes-dashboard \
+#   --set service.type=ClusterIP \
+#   --set protocolHttp=true \
+#   --set service.externalPort=80 \
+#   --set rbac.clusterReadOnlyRole=true
+
+# 3. Créer un ServiceAccount admin
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: admin-user
+    namespace: kubernetes-dashboard
+
+---
+# Service pour exposer le Dashboard
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-dashboard-external
+  namespace: kubernetes-dashboard
+  labels:
+    app: kubernetes-dashboard
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 8443
+      protocol: TCP
+      name: https
+  selector:
+    app.kubernetes.io/name: kubernetes-dashboard
+
+---
+# Script pour obtenir le token d'accès
+# kubectl -n kubernetes-dashboard create token admin-user
+
+# Ou créer un token permanent (non recommandé en production)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-token
+  namespace: kubernetes-dashboard
+  annotations:
+    kubernetes.io/service-account.name: admin-user
+type: kubernetes.io/service-account-token
+
+---
+# Ingress pour le Dashboard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dashboard.local
+      secretName: kubernetes-dashboard-tls
+  rules:
+    - host: dashboard.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubernetes-dashboard-external
+                port:
+                  number: 443
+

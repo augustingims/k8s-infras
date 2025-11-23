@@ -1,0 +1,96 @@
+---
+# ConfigMap pour la configuration de l'agent Jenkins
+# Note: Cette configuration est un exemple. Vous devrez configurer l'agent via l'interface Jenkins
+# et utiliser les credentials appropriés
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-agent-config
+  namespace: devops
+  labels:
+    app: jenkins-agent
+    component: ci-cd
+data:
+  JENKINS_URL: "http://jenkins:8080/jenkins"
+  JENKINS_TUNNEL: "jenkins:50000"
+---
+# Deployment pour Jenkins Agent (optionnel - peut être dynamique via Kubernetes plugin)
+# Cette configuration est pour un agent statique. Pour des agents dynamiques,
+# utilisez le plugin Kubernetes de Jenkins
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-agent
+  namespace: devops
+  labels:
+    app: jenkins-agent
+    component: ci-cd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-agent
+  template:
+    metadata:
+      labels:
+        app: jenkins-agent
+        component: ci-cd
+    spec:
+      containers:
+      - name: jenkins-agent
+        image: jenkins/inbound-agent:latest
+        env:
+        - name: JENKINS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: jenkins-agent-config
+              key: JENKINS_URL
+        - name: JENKINS_TUNNEL
+          valueFrom:
+            configMapKeyRef:
+              name: jenkins-agent-config
+              key: JENKINS_TUNNEL
+        - name: JENKINS_AGENT_NAME
+          value: "k8s-agent-1"
+        - name: JENKINS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-agent-secret
+              key: JENKINS_SECRET
+        - name: JENKINS_AGENT_WORKDIR
+          value: "/home/jenkins/agent"
+        volumeMounts:
+        - name: workspace
+          mountPath: /home/jenkins/agent
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: workspace
+        emptyDir: {}
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+---
+# Secret pour l'agent Jenkins
+# IMPORTANT: Remplacez la valeur par le secret généré dans Jenkins
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-agent-secret
+  namespace: devops
+  labels:
+    app: jenkins-agent
+type: Opaque
+stringData:
+  # Ce secret est généré quand vous créez un agent dans Jenkins
+  # Allez dans Jenkins > Manage Jenkins > Manage Nodes > New Node
+  JENKINS_SECRET: "REPLACE_WITH_ACTUAL_SECRET_FROM_JENKINS"
+

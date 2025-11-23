@@ -1,0 +1,113 @@
+---
+# PersistentVolume pour PostgreSQL (namespace devops)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-postgres-devops
+  labels:
+    type: local
+    app: postgres
+    namespace: devops
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/k8s-storage/postgres-devops
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker1  # Remplacez par le nom de votre worker node
+---
+# PersistentVolume pour Jenkins
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-jenkins
+  labels:
+    type: local
+    app: jenkins
+    namespace: devops
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/k8s-storage/jenkins
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker1
+---
+# PersistentVolume pour Nexus
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nexus
+  labels:
+    type: local
+    app: nexus
+    namespace: devops
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/k8s-storage/nexus
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker1
+---
+# PersistentVolume pour SonarQube
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-sonarqube
+  labels:
+    type: local
+    app: sonarqube
+    namespace: devops
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/k8s-storage/sonarqube
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker2
+

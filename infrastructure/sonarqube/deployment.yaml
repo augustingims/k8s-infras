@@ -1,0 +1,147 @@
+---
+# PersistentVolumeClaim pour SonarQube
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-pvc
+  namespace: devops
+  labels:
+    app: sonarqube
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Deployment pour SonarQube
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube
+  namespace: devops
+  labels:
+    app: sonarqube
+    component: code-quality
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+        component: code-quality
+    spec:
+      initContainers:
+      # SonarQube nécessite des paramètres système spécifiques
+      - name: init-sysctl
+        image: busybox:latest
+        command:
+        - sysctl
+        - -w
+        - vm.max_map_count=262144
+        securityContext:
+          privileged: true
+      - name: init-fs
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          chown -R 1000:1000 /opt/sonarqube/data
+          chown -R 1000:1000 /opt/sonarqube/logs
+          chown -R 1000:1000 /opt/sonarqube/extensions
+        volumeMounts:
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/data
+        - name: sonarqube-logs
+          mountPath: /opt/sonarqube/logs
+        - name: sonarqube-extensions
+          mountPath: /opt/sonarqube/extensions
+        securityContext:
+          runAsUser: 0
+      containers:
+      - name: sonarqube
+        image: sonarqube:10.5.1-community
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        env:
+        - name: SONAR_JDBC_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: sonarqube-secret
+              key: SONAR_JDBC_USERNAME
+        - name: SONAR_JDBC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sonarqube-secret
+              key: SONAR_JDBC_PASSWORD
+        - name: SONAR_JDBC_URL
+          valueFrom:
+            secretKeyRef:
+              name: sonarqube-secret
+              key: SONAR_JDBC_URL
+        volumeMounts:
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/data
+        - name: sonarqube-logs
+          mountPath: /opt/sonarqube/logs
+        - name: sonarqube-extensions
+          mountPath: /opt/sonarqube/extensions
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /api/system/status
+            port: 9000
+          initialDelaySeconds: 180
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /api/system/status
+            port: 9000
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: sonarqube-data
+        persistentVolumeClaim:
+          claimName: sonarqube-pvc
+      - name: sonarqube-logs
+        emptyDir: {}
+      - name: sonarqube-extensions
+        emptyDir: {}
+---
+# Service pour SonarQube
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube
+  namespace: devops
+  labels:
+    app: sonarqube
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: http
+  selector:
+    app: sonarqube
+

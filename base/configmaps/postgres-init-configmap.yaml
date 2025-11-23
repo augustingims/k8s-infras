@@ -1,0 +1,31 @@
+---
+# ConfigMap pour initialiser PostgreSQL avec plusieurs bases de données
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: devops
+  labels:
+    app: postgres
+    component: database
+data:
+  init-db.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Script pour créer plusieurs bases de données
+    # Utilisé par PostgreSQL pour initialiser les DBs au démarrage
+    
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        -- Créer la base de données SonarQube
+        CREATE DATABASE sonarqube;
+        CREATE USER sonarqube WITH ENCRYPTED PASSWORD 'sonarqube_db_password_2024';
+        GRANT ALL PRIVILEGES ON DATABASE sonarqube TO sonarqube;
+        
+        -- Extensions utiles
+        \c sonarqube
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        CREATE EXTENSION IF NOT EXISTS btree_gist;
+    EOSQL
+    
+    echo "PostgreSQL initialization completed successfully!"
